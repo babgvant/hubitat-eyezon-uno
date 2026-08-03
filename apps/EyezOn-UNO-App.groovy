@@ -113,7 +113,7 @@ private void ensureZoneDevices() {
         String desiredDriver = driverNameForType(type)
 
         if (!existing) {
-            addChildDevice("hubitat", desiredDriver, dni,
+            addChildDevice("eyezonUno", desiredDriver, dni,
                 [name: "UNO Zone ${zoneNum}", label: label, isComponent: true])
             logDebug("Created zone ${zoneNum} (${label}, ${desiredDriver})")
             return
@@ -125,7 +125,7 @@ private void ensureZoneDevices() {
         if (existingTypeName && existingTypeName != desiredDriver) {
             try {
                 deleteChildDevice(dni)
-                addChildDevice("hubitat", desiredDriver, dni,
+                addChildDevice("eyezonUno", desiredDriver, dni,
                     [name: "UNO Zone ${zoneNum}", label: label, isComponent: true])
                 logInfo("Recreated zone ${zoneNum} as ${desiredDriver}")
             } catch (e) {
@@ -164,16 +164,16 @@ def zoneStateChanged(Integer zoneNum, boolean active) {
     try { typeName = child.getTypeName() } catch (ignored) { }
 
     switch (typeName) {
-        case "Generic Component Motion Sensor":
+        case "EyezOn UNO Zone Motion":
             child.parse([[name: "motion", value: active ? "active" : "inactive", descriptionText: "Zone ${zoneNum} motion ${active ? 'active' : 'inactive'}"]])
             break
-        case "Generic Component Smoke Detector":
+        case "EyezOn UNO Zone Smoke":
             child.parse([[name: "smoke", value: active ? "detected" : "clear", descriptionText: "Zone ${zoneNum} smoke ${active ? 'detected' : 'clear'}"]])
             break
-        case "Generic Component Carbon Monoxide Detector":
+        case "EyezOn UNO Zone CO":
             child.parse([[name: "carbonMonoxide", value: active ? "detected" : "clear", descriptionText: "Zone ${zoneNum} CO ${active ? 'detected' : 'clear'}"]])
             break
-        case "Generic Component Water Sensor":
+        case "EyezOn UNO Zone Water":
             child.parse([[name: "water", value: active ? "wet" : "dry", descriptionText: "Zone ${zoneNum} water ${active ? 'wet' : 'dry'}"]])
             break
         default:
@@ -212,11 +212,11 @@ def disarm(Integer partitionNum, String code) {
 
 private String driverNameForType(String type) {
     switch (type) {
-        case "motion": return "Generic Component Motion Sensor"
-        case "smoke": return "Generic Component Smoke Detector"
-        case "co": return "Generic Component Carbon Monoxide Detector"
-        case "water": return "Generic Component Water Sensor"
-        default: return "Generic Component Contact Sensor"
+        case "motion": return "EyezOn UNO Zone Motion"
+        case "smoke": return "EyezOn UNO Zone Smoke"
+        case "co": return "EyezOn UNO Zone CO"
+        case "water": return "EyezOn UNO Zone Water"
+        default: return "EyezOn UNO Zone Contact"
     }
 }
 
