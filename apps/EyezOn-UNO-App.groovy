@@ -8,7 +8,7 @@
 definition(
     name: "EyezOn UNO Integration",
     namespace: "eyezonUno",
-    author: "Custom",
+    author: "babgvant",
     description: "Direct local integration with an EyezOn UNO alarm panel",
     category: "Safety & Security",
     iconUrl: "",

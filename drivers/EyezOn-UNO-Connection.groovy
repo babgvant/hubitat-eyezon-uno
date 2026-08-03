@@ -8,7 +8,7 @@
  *  authoritative command/event tables this driver implements.
  */
 metadata {
-    definition(name: "EyezOn UNO Connection", namespace: "eyezonUno", author: "Custom") {
+    definition(name: "EyezOn UNO Connection", namespace: "eyezonUno", author: "babgvant") {
         capability "Initialize"
         capability "Refresh"
         capability "Actuator"

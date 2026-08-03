@@ -5,7 +5,7 @@
  *  the parent app via parse() whenever the connection driver reports a zone event.
  */
 metadata {
-    definition(name: "EyezOn UNO Zone Contact", namespace: "eyezonUno", author: "Custom") {
+    definition(name: "EyezOn UNO Zone Contact", namespace: "eyezonUno", author: "babgvant") {
         capability "Actuator"
         capability "Sensor"
         capability "Refresh"

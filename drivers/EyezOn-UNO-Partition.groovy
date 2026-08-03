@@ -5,7 +5,7 @@
  *  through the parent app to the EyezOn UNO Connection device, which owns the socket.
  */
 metadata {
-    definition(name: "EyezOn UNO Partition", namespace: "eyezonUno", author: "Custom") {
+    definition(name: "EyezOn UNO Partition", namespace: "eyezonUno", author: "babgvant") {
         capability "Actuator"
         capability "Sensor"
         capability "Refresh"
