@@ -11,15 +11,29 @@ protocol the UNO implements).
 - `drivers/EyezOn-UNO-Connection.groovy` — owns the raw TCP socket, login, command
   queue, and TPI frame parsing
 - `drivers/EyezOn-UNO-Partition.groovy` — per-partition arm/disarm/status device
+- `drivers/EyezOn-UNO-Zone-Contact.groovy` — zone device: door/window contact
+- `drivers/EyezOn-UNO-Zone-Motion.groovy` — zone device: motion/PIR
+- `drivers/EyezOn-UNO-Zone-Smoke.groovy` — zone device: smoke/heat detector
+- `drivers/EyezOn-UNO-Zone-CO.groovy` — zone device: carbon monoxide detector
+- `drivers/EyezOn-UNO-Zone-Water.groovy` — zone device: water/flood sensor
 
-Zone devices use Hubitat's built-in Generic Component sensor drivers (Contact,
-Motion, Smoke, Carbon Monoxide, Water) rather than custom ones.
+Zone devices use this repo's own drivers (rather than Hubitat's built-in Generic
+Component sensors) so they install cleanly through Hubitat Package Manager.
 
 ## Install
 
+### Hubitat Package Manager (recommended)
+
+In HPM, choose **Install**, **Search by Keywords**, and search for "EyezOn UNO", or
+use **Install from a URL/Manifest** and paste the raw URL to `packageManifest.json`
+in this repo. HPM installs the app and all six drivers and keeps them updated.
+
+### Manual
+
 1. In Hubitat, open **Drivers Code**, **New Driver**, paste in
    `drivers/EyezOn-UNO-Connection.groovy`, save.
-2. Repeat for `drivers/EyezOn-UNO-Partition.groovy`.
+2. Repeat for `drivers/EyezOn-UNO-Partition.groovy` and each
+   `drivers/EyezOn-UNO-Zone-*.groovy` file.
 3. Open **Apps Code**, **New App**, paste in `apps/EyezOn-UNO-App.groovy`, save.
 4. From **Apps**, **Add User App**, choose **EyezOn UNO Integration**.
 5. Enter the UNO's IP address, TPI port (default 4025), and TPI password (same as the
