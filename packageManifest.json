@@ -1,0 +1,72 @@
+{
+    "packageName": "EyezOn UNO Integration",
+    "author": "Andrew Van Til",
+    "version": "1.0.0",
+    "minimumHEVersion": "2.3.0",
+    "dateReleased": "2026-08-03",
+    "licenseFile": "",
+    "documentationLink": "https://github.com/babgvant/hubitat-eyezon-uno/blob/master/README.md",
+    "communityLink": "",
+    "apps": [
+        {
+            "id": "3f08f034-fd94-4b7b-8052-32481be53064",
+            "name": "EyezOn UNO Integration",
+            "namespace": "eyezonUno",
+            "location": "https://raw.githubusercontent.com/babgvant/hubitat-eyezon-uno/master/apps/EyezOn-UNO-App.groovy",
+            "required": true,
+            "oauth": false,
+            "primary": true
+        }
+    ],
+    "drivers": [
+        {
+            "id": "c79eadd6-4d2f-4de7-91b4-001a8b6b696e",
+            "name": "EyezOn UNO Connection",
+            "namespace": "eyezonUno",
+            "location": "https://raw.githubusercontent.com/babgvant/hubitat-eyezon-uno/master/drivers/EyezOn-UNO-Connection.groovy",
+            "required": true
+        },
+        {
+            "id": "a21d91c5-88b6-4341-b30f-9a87a9d870c2",
+            "name": "EyezOn UNO Partition",
+            "namespace": "eyezonUno",
+            "location": "https://raw.githubusercontent.com/babgvant/hubitat-eyezon-uno/master/drivers/EyezOn-UNO-Partition.groovy",
+            "required": true
+        },
+        {
+            "id": "64792121-26ef-4e0b-aea8-5b2c6b913d9a",
+            "name": "EyezOn UNO Zone Contact",
+            "namespace": "eyezonUno",
+            "location": "https://raw.githubusercontent.com/babgvant/hubitat-eyezon-uno/master/drivers/EyezOn-UNO-Zone-Contact.groovy",
+            "required": true
+        },
+        {
+            "id": "313c3a10-158b-4967-ae8a-b8ad8c1ccbe3",
+            "name": "EyezOn UNO Zone Motion",
+            "namespace": "eyezonUno",
+            "location": "https://raw.githubusercontent.com/babgvant/hubitat-eyezon-uno/master/drivers/EyezOn-UNO-Zone-Motion.groovy",
+            "required": true
+        },
+        {
+            "id": "563e6ff9-77b0-488f-a231-8afa51a7e876",
+            "name": "EyezOn UNO Zone Smoke",
+            "namespace": "eyezonUno",
+            "location": "https://raw.githubusercontent.com/babgvant/hubitat-eyezon-uno/master/drivers/EyezOn-UNO-Zone-Smoke.groovy",
+            "required": true
+        },
+        {
+            "id": "31fd2051-7dbb-412e-a30c-b8b45d4c02f8",
+            "name": "EyezOn UNO Zone CO",
+            "namespace": "eyezonUno",
+            "location": "https://raw.githubusercontent.com/babgvant/hubitat-eyezon-uno/master/drivers/EyezOn-UNO-Zone-CO.groovy",
+            "required": true
+        },
+        {
+            "id": "e8aea850-9f96-4e1f-8656-148495361c97",
+            "name": "EyezOn UNO Zone Water",
+            "namespace": "eyezonUno",
+            "location": "https://raw.githubusercontent.com/babgvant/hubitat-eyezon-uno/master/drivers/EyezOn-UNO-Zone-Water.groovy",
+            "required": true
+        }
+    ]
+}
