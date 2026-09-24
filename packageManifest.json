@@ -1,9 +1,9 @@
 {
     "packageName": "EyezOn UNO Integration",
     "author": "Andrew Van Til",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "minimumHEVersion": "2.3.0",
-    "dateReleased": "2026-08-03",
+    "dateReleased": "2026-09-23",
     "licenseFile": "",
     "documentationLink": "https://github.com/babgvant/hubitat-eyezon-uno/blob/master/README.md",
     "communityLink": "",

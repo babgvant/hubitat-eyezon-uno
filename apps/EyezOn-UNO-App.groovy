@@ -46,7 +46,7 @@ def mainPage() {
             input "debugLogging", "bool", title: "Enable debug logging", defaultValue: false
             input "traceLogging", "bool", title: "Enable trace (raw frame) logging", defaultValue: false
             input "heartbeatMinutes", "enum", title: "Poll interval",
-                options: ["1": "Every 1 minute", "3": "Every 3 minutes", "5": "Every 5 minutes"],
+                options: ["10s": "Every 10 seconds", "20s": "Every 20 seconds", "30s": "Every 30 seconds", "1": "Every 1 minute", "3": "Every 3 minutes", "5": "Every 5 minutes"],
                 defaultValue: "1", required: true
             input "watchdogMinutes", "enum", title: "Reconnect if no frames seen for",
                 options: ["3": "3 minutes", "5": "5 minutes", "10": "10 minutes"],

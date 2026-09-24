@@ -38,7 +38,7 @@ metadata {
         input name: "password", type: "password", title: "UNO TPI Password", required: true
         input name: "masterCode", type: "password", title: "Master code (for auto code-request replies)", required: false
         input name: "heartbeatMinutes", type: "enum", title: "Poll interval",
-            options: ["1": "Every 1 minute", "3": "Every 3 minutes", "5": "Every 5 minutes"],
+            options: ["10s": "Every 10 seconds", "20s": "Every 20 seconds", "30s": "Every 30 seconds", "1": "Every 1 minute", "3": "Every 3 minutes", "5": "Every 5 minutes"],
             defaultValue: "1", required: true
         input name: "watchdogMinutes", type: "enum", title: "Reconnect if no frames seen for",
             options: ["3": "3 minutes", "5": "5 minutes", "10": "10 minutes"],
@@ -72,7 +72,10 @@ def initialize() {
 
 private void scheduleHealthChecks() {
     String hb = (settings.heartbeatMinutes ?: "1").toString()
-    if (hb == "1") {
+    if (hb in ["10s", "20s", "30s"]) {
+        Integer seconds = hb.replace("s", "").toInteger()
+        schedule("0/${seconds} * * * * ?", "heartbeatCheck")
+    } else if (hb == "1") {
         runEvery1Minute("heartbeatCheck")
     } else if (hb == "3") {
         runEvery3Minutes("heartbeatCheck")
