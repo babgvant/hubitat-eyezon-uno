@@ -155,10 +155,7 @@ private void applyConnectionSettings() {
 
 def zoneStateChanged(Integer zoneNum, boolean active) {
     def child = getChildDevice("uno-zone-${zoneNum}")
-    if (!child) {
-        logWarn("No child device for zone ${zoneNum}")
-        return
-    }
+    if (!child) return
 
     String typeName = null
     try { typeName = child.getTypeName() } catch (ignored) { }

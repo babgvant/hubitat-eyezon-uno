@@ -1,11 +1,9 @@
 /**
  *  EyezOn UNO Connection Driver
  *
- *  Talks directly to the EyezOn UNO's TPI socket (port 4025) using the DSC EnvisaLink
- *  TPI protocol (checksummed ASCII frames): "CCC" + data + "CKS" + CR/LF, where CKS is
- *  the sum of the ASCII byte values of every command/data character, truncated to 8
- *  bits and written as two uppercase hex characters. See EnvisaLinkTPI-1-08 for the
- *  authoritative command/event tables this driver implements.
+ *  Talks to the UNO TPI socket (port 4025). The UNO protocol uses a plain-text
+ *  login followed by %CC,DATA$ reports and ^CC,DATA$ commands; it is distinct
+ *  from the DSC EnvisaLink TPI protocol.
  */
 metadata {
     definition(name: "EyezOn UNO Connection", namespace: "eyezonUno", author: "babgvant") {
@@ -64,6 +62,9 @@ def initialize() {
     state.loggedIn = false
     state.lastFrameTs = 0L
     state.lastFrameEventTs = 0L
+    state.zoneBits = null
+    state.partitionBytes = null
+    state.troubleBytes = null
 
     sendEvent(name: "connectionState", value: "disconnected")
 
@@ -144,39 +145,30 @@ def watchdogCheck() {
     }
 }
 
-/* ---------------- Outbound frame construction ---------------- */
-
-private String calcChecksum(String cmdAndData) {
-    int sum = 0
-    cmdAndData.each { String ch -> sum += (int) ch.charAt(0) }
-    sum = sum & 0xFF
-    String hex = Integer.toHexString(sum).toUpperCase()
-    return hex.length() < 2 ? ("0" + hex) : hex
-}
+/* ---------------- Outbound UNO commands ---------------- */
 
 private void rawSend(String cmd, String data = "") {
-    String body = cmd + (data ?: "")
-    String frame = body + calcChecksum(body)
+    String frame = "^${cmd},${data ?: ''}\$"
     if (settings.traceLogging) {
-        log.debug "EyezOn UNO TX >>> ${frame}"
+        log.debug "EyezOn UNO TX >>> ${cmd == '12' ? '^12,[redacted]$' : frame}"
     }
     interfaces.rawSocket.sendMessage(frame + "\r\n")
 }
 
 def poll() {
-    enqueueCommand("000", "", "poll")
+    enqueueCommand("00", "", "poll")
 }
 
 def statusReport() {
-    enqueueCommand("001", "", "statusReport")
+    enqueueCommand("0C", "", "statusReport")
 }
 
 def armAway(partition = 1) {
-    enqueueCommand("030", "${safeInt(partition, 1)}", "armAway")
+    enqueueCommand("09", "${safeInt(partition, 1)}", "armAway")
 }
 
 def armStay(partition = 1) {
-    enqueueCommand("031", "${safeInt(partition, 1)}", "armStay")
+    enqueueCommand("08", "${safeInt(partition, 1)}", "armStay")
 }
 
 def disarm(partition = 1, String code = null) {
@@ -185,7 +177,7 @@ def disarm(partition = 1, String code = null) {
         log.warn "EyezOn UNO: disarm requested without a code"
         return
     }
-    enqueueCommand("040", "${safeInt(partition, 1)}${useCode}", "disarm")
+    enqueueCommand("12", "${safeInt(partition, 1)},${useCode}", "disarm")
 }
 
 /* ---------------- Command queue ---------------- */
@@ -243,13 +235,23 @@ def parse(String message) {
 
     while (true) {
         String buffer = state.rxBuffer ?: ""
-        int idx = buffer.indexOf('\n')
-        if (idx < 0) break
+        buffer = buffer.replaceFirst('^[\\r\\n]+', '')
+        state.rxBuffer = buffer
+        if (!buffer) break
 
-        String frame = buffer.substring(0, idx).replace("\r", "").trim()
-        state.rxBuffer = buffer.substring(idx + 1)
-
-        if (frame) parseFrame(frame)
+        if (buffer.startsWith('%') || buffer.startsWith('^')) {
+            int end = buffer.indexOf('$')
+            if (end < 0) break
+            String frame = buffer.substring(0, end + 1)
+            state.rxBuffer = buffer.substring(end + 1)
+            parseFrame(frame)
+        } else {
+            int end = buffer.indexOf('\n')
+            if (end < 0) break
+            String line = buffer.substring(0, end).replace("\r", "").trim()
+            state.rxBuffer = buffer.substring(end + 1)
+            handleLoginLine(line)
+        }
     }
 }
 
@@ -277,159 +279,114 @@ private void parseFrame(String frame) {
         state.lastFrameEventTs = now()
     }
 
-    if (frame.length() < 5) {
-        logDebug("Ignoring short frame: ${frame}")
+    if (frame.length() < 5 || frame.charAt(3) != ',' || !frame.endsWith('$')) {
+        logDebug("Ignoring malformed UNO frame: ${frame}")
         return
     }
-
-    String cmd = frame.substring(0, 3)
-    String recvCksum = frame.substring(frame.length() - 2)
-    String data = frame.substring(3, frame.length() - 2)
-
-    String expectCksum = calcChecksum(cmd + data)
-    if (expectCksum != recvCksum.toUpperCase()) {
-        logDebug("Checksum mismatch on frame ${frame} (expected ${expectCksum})")
+    String cmd = frame.substring(1, 3)
+    String data = frame.substring(4, frame.length() - 1)
+    if (frame.startsWith('^')) {
+        handleAck(cmd, data)
+    } else {
+        dispatch(cmd, data)
     }
-
-    dispatch(cmd, data)
 }
 
 private void dispatch(String cmd, String data) {
     switch (cmd) {
-        case "500": handleAck(data); break
-        case "501": handleCommandError(); break
-        case "502": handleSystemError(data); break
-        case "505": handleLogin(data); break
-
-        case "601": zoneEvent(data, 1, true); break
-        case "602": zoneEvent(data, 1, false); break
-        case "605": zoneEvent(data, 0, true); break
-        case "606": zoneEvent(data, 0, false); break
-        case "609": zoneEvent(data, 0, true); break
-        case "610": zoneEvent(data, 0, false); break
-
-        case "650": partitionEvent(data, "ready"); break
-        case "651": partitionEvent(data, "notReady"); break
-        case "652": partitionArmed(data); break
-        case "653": partitionEvent(data, "ready"); break
-        case "654": partitionEvent(data, "alarm"); break
-        case "655": partitionEvent(data, "disarmed"); break
-        case "656": partitionEvent(data, "exitDelay"); break
-        case "657": partitionEvent(data, "entryDelay"); break
-        case "658": partitionEvent(data, "lockout"); break
-        case "659": partitionEvent(data, "failedToArm"); break
-        case "663": partitionEvent(data, "chimeEnabled"); break
-        case "664": partitionEvent(data, "chimeDisabled"); break
-        case "670": partitionEvent(data, "invalidCode"); break
-
-        case "840": partitionTrouble(data, true); break
-        case "841": partitionTrouble(data, false); break
-
-        case "800": sendEvent(name: "batteryTrouble", value: "active"); break
-        case "801": sendEvent(name: "batteryTrouble", value: "clear"); break
-        case "802": sendEvent(name: "acTrouble", value: "active"); break
-        case "803": sendEvent(name: "acTrouble", value: "clear"); break
-        case "806": sendEvent(name: "bellTrouble", value: "active"); break
-        case "807": sendEvent(name: "bellTrouble", value: "clear"); break
-        case "814": sendEvent(name: "ftcTrouble", value: "active"); break
-        case "815": sendEvent(name: "ftcTrouble", value: "clear"); break
-        case "829": sendEvent(name: "systemTamper", value: "active"); break
-        case "830": sendEvent(name: "systemTamper", value: "clear"); break
-
-        case "900":
-        case "921":
-        case "922":
-            handleCodeRequired()
-            break
-
+        case "01": zoneSnapshot(data); break
+        case "02": partitionSnapshot(data); break
+        case "06": troubleSnapshot(data); break
+        case "05": logDebug("Host information received"); break
         default:
-            logDebug("Unhandled TPI command ${cmd}: ${data}")
+            logDebug("Unhandled UNO report ${cmd}")
             break
     }
 }
 
-private void handleAck(String data) {
-    String ackedCmd = data?.length() >= 3 ? data.substring(0, 3) : data
-    sendEvent(name: "lastAck", value: "ok:${ackedCmd}")
-    if (state.commandInFlight) {
-        state.commandInFlight = null
-    }
-    processQueue()
-}
-
-private void handleCommandError() {
-    logWarn("Command rejected: bad checksum")
-    sendEvent(name: "lastAck", value: "checksumError")
-    state.commandInFlight = null
-    processQueue()
-}
-
-private void handleSystemError(String data) {
-    sendEvent(name: "lastError", value: data)
-    logWarn("System error ${data}")
-    state.commandInFlight = null
-    processQueue()
-}
-
-private void handleLogin(String data) {
-    switch (data) {
-        case "3":
-            logInfo("UNO requested login")
-            rawSend("005", settings.password ?: "")
+private void handleLoginLine(String line) {
+    switch (line) {
+        case "Login:":
+            if (!settings.password) {
+                logWarn("UNO password is missing")
+                sendEvent(name: "connectionState", value: "auth_failed")
+                return
+            }
+            interfaces.rawSocket.sendMessage("${settings.password}\r")
             break
-        case "1":
-            logInfo("UNO login successful")
+        case "OK":
             state.loggedIn = true
             sendEvent(name: "connectionState", value: "authenticated")
             statusReport()
             break
-        case "0":
+        case "FAILED":
             logWarn("UNO login failed - check password")
             sendEvent(name: "connectionState", value: "auth_failed")
             break
-        case "2":
+        case "Timed Out":
             logWarn("UNO login timed out")
             runIn(5, "reconnect")
             break
         default:
-            logDebug("Unrecognized login status: ${data}")
+            logDebug("Unexpected UNO login response: ${line}")
             break
     }
 }
 
-private void handleCodeRequired() {
-    if (settings.masterCode) {
-        rawSend("200", settings.masterCode)
-    } else {
-        logWarn("UNO requested an access code but no master code is configured")
+private void handleAck(String cmd, String result) {
+    String value = result == "00" ? "ok:${cmd}" : "error:${cmd}:${result}"
+    sendEvent(name: "lastAck", value: value)
+    if (result != "00") {
+        sendEvent(name: "lastError", value: value)
+        logWarn("UNO command ${cmd} rejected with code ${result}")
+    }
+    if (state.commandInFlight?.cmd == cmd) {
+        state.commandInFlight = null
+        processQueue()
     }
 }
 
-private void zoneEvent(String data, int zoneOffset, boolean active) {
-    if (data == null || data.length() < zoneOffset + 3) return
-    Integer zone = safeInt(data.substring(zoneOffset, zoneOffset + 3), null)
-    if (zone == null || zone <= 0) return
-    parent?.zoneStateChanged(zone, active)
+private void zoneSnapshot(String data) {
+    if (!(data ==~ /(?i)[0-9a-f]{32}/)) return
+    String previous = state.zoneBits
+    for (int byteIndex = 0; byteIndex < 16; byteIndex++) {
+        int bits = Integer.parseInt(data.substring(byteIndex * 2, byteIndex * 2 + 2), 16)
+        int oldBits = previous ? Integer.parseInt(previous.substring(byteIndex * 2, byteIndex * 2 + 2), 16) : -1
+        for (int bit = 0; bit < 8; bit++) {
+            if (previous && ((bits ^ oldBits) & (1 << bit)) == 0) continue
+            int zone = byteIndex * 8 + bit + 1
+            boolean active = (bits & (1 << bit)) != 0
+            parent?.zoneStateChanged(zone, active)
+        }
+    }
+    state.zoneBits = data.toUpperCase()
 }
 
-private void partitionEvent(String data, String status) {
-    if (data == null || data.isEmpty()) return
-    Integer partition = safeInt(data.substring(0, 1), 1)
-    parent?.partitionStateChanged(partition, status)
+private void partitionSnapshot(String data) {
+    if (!(data ==~ /(?i)[0-9a-f]{16}/)) return
+    String previous = state.partitionBytes
+    Map statuses = ["00": "unknown", "01": "ready", "02": "readyBypassed",
+        "03": "notReady", "04": "armedStay", "05": "armedAway",
+        "08": "exitDelay", "09": "armedAway", "0C": "entryDelay", "11": "alarm"]
+    for (int i = 0; i < 8; i++) {
+        String code = data.substring(i * 2, i * 2 + 2).toUpperCase()
+        if (previous?.substring(i * 2, i * 2 + 2) != code && code != "00") {
+            parent?.partitionStateChanged(i + 1, statuses[code] ?: "busy")
+        }
+    }
+    state.partitionBytes = data.toUpperCase()
 }
 
-private void partitionArmed(String data) {
-    if (data == null || data.length() < 2) return
-    Integer partition = safeInt(data.substring(0, 1), 1)
-    String mode = data.substring(1, 2)
-    String status = (mode == "1" || mode == "3") ? "armedStay" : "armedAway"
-    parent?.partitionStateChanged(partition, status)
-}
-
-private void partitionTrouble(String data, boolean active) {
-    if (data == null || data.isEmpty()) return
-    Integer partition = safeInt(data.substring(0, 1), 1)
-    parent?.partitionTroubleChanged(partition, active)
+private void troubleSnapshot(String data) {
+    if (!(data ==~ /(?i)[0-9a-f]{16}/)) return
+    String previous = state.troubleBytes
+    for (int i = 0; i < 8; i++) {
+        int bits = Integer.parseInt(data.substring(i * 2, i * 2 + 2), 16)
+        if (!previous || previous.substring(i * 2, i * 2 + 2) != data.substring(i * 2, i * 2 + 2)) {
+            parent?.partitionTroubleChanged(i + 1, bits != 0)
+        }
+    }
+    state.troubleBytes = data.toUpperCase()
 }
 
 /* ---------------- Helpers ---------------- */

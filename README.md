@@ -1,9 +1,8 @@
 # Hubitat EyezOn UNO Integration
 
-Direct local integration between Hubitat Elevation and an EyezOn UNO alarm panel — no
-cloud, no separate proxy service. Talks straight to the UNO's TPI socket on port 4025
-using the DSC EnvisaLink TPI protocol (confirmed by EyezOn support to be the same
-protocol the UNO implements).
+Work in progress on a direct local integration between Hubitat Elevation and an
+EyezOn UNO alarm panel. The driver uses EyezOn's UNO TPI on port 4025, without
+a cloud service or separate proxy.
 
 ## Contents
 
@@ -26,7 +25,7 @@ Component sensors) so they install cleanly through Hubitat Package Manager.
 
 In HPM, choose **Install**, **Search by Keywords**, and search for "EyezOn UNO", or
 use **Install from a URL/Manifest** and paste the raw URL to `packageManifest.json`
-in this repo. HPM installs the app and all six drivers and keeps them updated.
+in this repo. HPM installs the app and all seven drivers and keeps them updated.
 
 ### Manual
 
@@ -36,22 +35,27 @@ in this repo. HPM installs the app and all six drivers and keeps them updated.
    `drivers/EyezOn-UNO-Zone-*.groovy` file.
 3. Open **Apps Code**, **New App**, paste in `apps/EyezOn-UNO-App.groovy`, save.
 4. From **Apps**, **Add User App**, choose **EyezOn UNO Integration**.
-5. Enter the UNO's IP address, TPI port (default 4025), and TPI password (same as the
-   UNO's local web page password), plus zone/partition counts and optional zone hints.
+5. Enter the UNO's IP address, TPI port (default 4025), and TPI password (the
+   password for the UNO's local page), plus zone/partition counts and optional
+   zone hints. Alarm control still needs validation on UNO hardware.
 
 ## Status
 
-Verified offline (Groovy compile check through class generation, plus unit tests for
-the checksum routine and frame parsing against the EnvisaLinkTPI-1-08 spec's own
-worked examples). **Not yet verified against real UNO hardware.** Before relying on
-it, enable trace logging on the connection device and compare the raw frames it logs
-against a known-working reference (e.g. an existing EnvisaLink integration on the same
-panel) to confirm the event codes line up on your firmware revision.
+Real UNO hardware has been reached on port 4025. Direct protocol checks confirmed
+the `Login:` / `OK` exchange and initial `%01`, `%02`, `%04`, `%05`, and `%06`
+reports on UNO firmware 01.01.193. Read-only poll (`^00,$`), initial state dump
+(`^0C,$`), and host information (`^0D,$`) commands returned successful
+acknowledgements and the expected reports. The driver and app passed a Groovy
+syntax check. These checks do not test the driver inside Hubitat or verify zone
+changes, reconnects, polling over time, or arm/disarm.
+Do not rely on this integration for alarm control until those checks pass.
 
 ## Protocol notes
 
-Frames are `CCC` (3-digit command) + data + `CKS` (2-hex-char checksum: sum of the
-ASCII byte values of every command/data character, truncated to 8 bits) + CR/LF.
-Login: on connect the panel sends `505` with data `3` (password requested); reply with
-`005` + password; panel replies `505` with `1` (success), `0` (bad password), or `2`
-(timed out). See EnvisaLinkTPI-1-08 for the full command/event tables.
+The UNO sends `Login:` on connection. The client replies with the local-page
+password and a carriage return; `OK` confirms login. UNO reports use `%CC,DATA$`
+and client commands use `^CC,DATA$` followed by CR/LF. For example, a partition
+state report is `%02,0100000000000000$` and a host information request is
+`^0D,$`. The command comma is required even when DATA is empty. See EyezOn's
+[UNO TPI documentation](https://forum.eyezon.com/viewtopic.php?t=5479); it
+explicitly distinguishes UNO TPI from DSC EnvisaLink TPI.
