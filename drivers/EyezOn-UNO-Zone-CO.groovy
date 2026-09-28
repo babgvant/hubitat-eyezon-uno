@@ -1,5 +1,6 @@
 /**
  *  EyezOn UNO Zone Driver - Carbon Monoxide
+ *  Version: 1.0.4
  *
  *  Child device for a zone configured as a CO detector. State is pushed in by the
  *  parent app via parse() whenever the connection driver reports a zone event.

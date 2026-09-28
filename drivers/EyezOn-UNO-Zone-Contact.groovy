@@ -1,5 +1,6 @@
 /**
  *  EyezOn UNO Zone Driver - Contact
+ *  Version: 1.0.4
  *
  *  Child device for a zone configured as a door/window contact. State is pushed in by
  *  the parent app via parse() whenever the connection driver reports a zone event.

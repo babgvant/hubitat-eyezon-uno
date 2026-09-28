@@ -1,5 +1,6 @@
 /**
  *  EyezOn UNO Integration
+ *  Version: 1.0.4
  *
  *  Connects directly to an EyezOn UNO over its local TPI socket (no cloud, no proxy
  *  service) and creates child devices for each zone and partition. Requires the

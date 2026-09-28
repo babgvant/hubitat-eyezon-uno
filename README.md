@@ -1,5 +1,7 @@
 # Hubitat EyezOn UNO Integration
 
+Version: 1.0.4
+
 Work in progress on a direct local integration between Hubitat Elevation and an
 EyezOn UNO alarm panel. The driver uses EyezOn's UNO TPI on port 4025, without
 a cloud service or separate proxy.

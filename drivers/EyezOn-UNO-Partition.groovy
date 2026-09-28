@@ -1,5 +1,6 @@
 /**
  *  EyezOn UNO Partition Driver
+ *  Version: 1.0.4
  *
  *  Child device representing one partition on the panel. All commands are proxied
  *  through the parent app to the EyezOn UNO Connection device, which owns the socket.

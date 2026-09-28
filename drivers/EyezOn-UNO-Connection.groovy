@@ -1,5 +1,6 @@
 /**
  *  EyezOn UNO Connection Driver
+ *  Version: 1.0.4
  *
  *  Talks to the UNO TPI socket (port 4025). The UNO protocol uses a plain-text
  *  login followed by %CC,DATA$ reports and ^CC,DATA$ commands; it is distinct
