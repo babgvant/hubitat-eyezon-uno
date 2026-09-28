@@ -63,6 +63,7 @@ def initialize() {
     state.commandInFlight = null
     state.loggedIn = false
     state.lastFrameTs = 0L
+    state.lastFrameEventTs = 0L
 
     sendEvent(name: "connectionState", value: "disconnected")
 
@@ -265,7 +266,16 @@ private void parseFrame(String frame) {
     if (settings.traceLogging) {
         log.debug "EyezOn UNO RX <<< ${frame}"
     }
-    sendEvent(name: "lastFrame", value: frame.take(1024))
+    // lastFrame is diagnostic only. Publishing every frame floods device events
+    // and makes Current States redraw continuously on a busy TPI connection.
+    long frameEventTs = (state.lastFrameEventTs ?: 0L) as Long
+    if (now() - frameEventTs >= 60000L) {
+        String displayedFrame = frame.take(1024)
+        if (device.currentValue("lastFrame") != displayedFrame) {
+            sendEvent(name: "lastFrame", value: displayedFrame)
+        }
+        state.lastFrameEventTs = now()
+    }
 
     if (frame.length() < 5) {
         logDebug("Ignoring short frame: ${frame}")
