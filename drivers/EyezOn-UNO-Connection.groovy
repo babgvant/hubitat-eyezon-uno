@@ -1,6 +1,6 @@
 /**
  *  EyezOn UNO Connection Driver
- *  Version: 1.0.4
+ *  Version: 1.0.5
  *
  *  Talks to the UNO TPI socket (port 4025). The UNO protocol uses a plain-text
  *  login followed by %CC,DATA$ reports and ^CC,DATA$ commands; it is distinct
@@ -17,6 +17,7 @@ metadata {
         attribute "lastAck", "string"
         attribute "lastError", "string"
         attribute "lastFrame", "string"
+        attribute "bypassedZones", "string"
         attribute "batteryTrouble", "string"
         attribute "acTrouble", "string"
         attribute "bellTrouble", "string"
@@ -64,6 +65,8 @@ def initialize() {
     state.lastFrameTs = 0L
     state.lastFrameEventTs = 0L
     state.zoneBits = null
+    state.bypassBits = null
+    state.hostInfo = null
     state.partitionBytes = null
     state.troubleBytes = null
 
@@ -297,8 +300,9 @@ private void dispatch(String cmd, String data) {
     switch (cmd) {
         case "01": zoneSnapshot(data); break
         case "02": partitionSnapshot(data); break
+        case "04": bypassSnapshot(data); break
         case "06": troubleSnapshot(data); break
-        case "05": logDebug("Host information received"); break
+        case "05": hostInformation(data); break
         default:
             logDebug("Unhandled UNO report ${cmd}")
             break
@@ -361,6 +365,41 @@ private void zoneSnapshot(String data) {
         }
     }
     state.zoneBits = data.toUpperCase()
+}
+
+private void bypassSnapshot(String data) {
+    if (!(data ==~ /(?i)[0-9a-f]{32}/)) return
+    String bits = data.toUpperCase()
+    if (state.bypassBits == bits) return
+
+    List<Integer> zones = []
+    for (int byteIndex = 0; byteIndex < 16; byteIndex++) {
+        int value = Integer.parseInt(bits.substring(byteIndex * 2, byteIndex * 2 + 2), 16)
+        for (int bit = 0; bit < 8; bit++) {
+            if ((value & (1 << bit)) != 0) zones << byteIndex * 8 + bit + 1
+        }
+    }
+    String value = zones ? zones.join(", ") : "none"
+    if (device.currentValue("bypassedZones") != value) {
+        sendEvent(name: "bypassedZones", value: value)
+        logDebug("Bypassed zones: ${value}")
+    }
+    state.bypassBits = bits
+}
+
+private void hostInformation(String data) {
+    List<String> fields = data.split(",")*.trim()
+    if (fields.size() < 4 || !(fields[0] ==~ /(?i)[0-9a-f]{12}/) ||
+        !fields[1] || !fields[2] || !(fields[3] ==~ /[1-8]/)) return
+
+    // Newer firmware includes a panel clock after these fields. Ignore it when
+    // comparing reports so every heartbeat does not produce another debug log.
+    Map info = [mac: fields[0].toUpperCase(), type: fields[1],
+        firmware: fields[2], partition: fields[3]]
+    if (state.hostInfo != info) {
+        state.hostInfo = info
+        logDebug("Host information: ${info.type}, firmware ${info.firmware}, default partition ${info.partition}")
+    }
 }
 
 private void partitionSnapshot(String data) {

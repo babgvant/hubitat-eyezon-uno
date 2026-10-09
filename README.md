@@ -1,6 +1,6 @@
 # Hubitat EyezOn UNO Integration
 
-Version: 1.0.4
+Version: 1.0.5
 
 Work in progress on a direct local integration between Hubitat Elevation and an
 EyezOn UNO alarm panel. The driver uses EyezOn's UNO TPI on port 4025, without
@@ -53,6 +53,12 @@ changes, reconnects, polling over time, or arm/disarm.
 Do not rely on this integration for alarm control until those checks pass.
 
 ## Protocol notes
+
+The connection device's `bypassedZones` state lists bypassed zone numbers (or
+`none`) from UNO report `%04`. It is separate from zone open/fault states.
+Debug logging reports bypass changes and host information changes; repeated
+host reports with only a new panel time stay quiet. Enable trace logging to see
+every raw frame. Unknown report types still appear in debug logs.
 
 The UNO sends `Login:` on connection. The client replies with the local-page
 password and a carriage return; `OK` confirms login. UNO reports use `%CC,DATA$`
